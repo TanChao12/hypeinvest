@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Forex & Crypto Advisor</title>
+  <style>
+    :root {
+      --bg: #0a1020;
+      --card: #121b34;
+      --text: #eaf0ff;
+      --muted: #afbbdf;
+      --accent: #5eead4;
+      --warn: #fbbf24;
+      --good: #4ade80;
+      --danger: #fb7185;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(circle at top, #14224c 0%, #070b18 60%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 1.2rem;
+    }
+    .container { max-width: 980px; margin: 0 auto; display: grid; gap: 1rem; }
+    .card {
+      background: rgba(18, 27, 52, 0.96);
+      border: 1px solid rgba(175, 187, 223, 0.2);
+      border-radius: 14px;
+      padding: 1rem;
+      box-shadow: 0 12px 24px rgba(0,0,0,.22);
+    }
+    h1, h2, h3 { margin: 0 0 .45rem; }
+    p { color: var(--muted); margin: .25rem 0; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: .8rem;
+      margin-top: .5rem;
+    }
+    label { display: block; color: var(--muted); font-size: .88rem; margin-bottom: .3rem; }
+    input, select {
+      width: 100%;
+      padding: .64rem .7rem;
+      border-radius: 8px;
+      border: 1px solid rgba(175, 187, 223, 0.35);
+      background: #0d1530;
+      color: var(--text);
+    }
+    button {
+      margin-top: .9rem;
+      padding: .75rem 1rem;
+      border: 0;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #04252a;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .result { display: none; margin-top: 1rem; background: #0d1733; border-radius: 10px; padding: .9rem; }
+    .score-good { color: var(--good); }
+    .score-warn { color: var(--warn); }
+    .score-risk { color: var(--danger); }
+    .list-tight li { margin-bottom: .32rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: .6rem; }
+    th, td { padding: .55rem .45rem; border-bottom: 1px solid rgba(175, 187, 223, 0.18); text-align: left; font-size: .92rem; }
+    .small { font-size: .86rem; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="card">
+      <h1>Student Forex & Crypto Advisor</h1>
+      <p>
+        This tool gives <strong>educational financial guidance</strong> for students: which instrument may fit your risk profile,
+        how much to allocate, and what safety rules to follow.
+      </p>
+      <p><strong>Important:</strong> This is not personalized licensed financial advice. Use it for learning and decision structure.</p>
+    </section>
+
+    <section class="card">
+      <h2>Set your profile</h2>
+      <div class="grid">
+        <div>
+          <label for="budget">Investment budget (USD)</label>
+          <input id="budget" type="number" min="20" step="10" value="150" />
+        </div>
+        <div>
+          <label for="days">Planned holding period (days)</label>
+          <input id="days" type="number" min="1" max="90" value="14" />
+        </div>
+        <div>
+          <label for="risk">Risk tolerance</label>
+          <select id="risk">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div>
+          <label for="goal">Main goal</label>
+          <select id="goal">
+            <option value="preserve">Protect money</option>
+            <option value="balanced" selected>Balanced growth</option>
+            <option value="aggressive">High growth</option>
+          </select>
+        </div>
+      </div>
+      <button id="runBtn">Get financial advice now</button>
+      <div id="result" class="result"></div>
+    </section>
+
+    <section class="card small">
+      <h3>Student safety rules</h3>
+      <ul class="list-tight">
+        <li>Keep an emergency fund first (3+ months expenses).</li>
+        <li>Never risk money for tuition or rent.</li>
+        <li>Use max 1-2 trades per week while learning.</li>
+        <li>Always paper-trade new strategies before real money.</li>
+      </ul>
+    </section>
+  </main>
+
+  <script>
+    const assets = [
+      { symbol: 'BTC/USDT', kind: 'crypto', momentum: 8, volatility: 9 },
+      { symbol: 'ETH/USDT', kind: 'crypto', momentum: 7, volatility: 8 },
+      { symbol: 'SOL/USDT', kind: 'crypto', momentum: 7, volatility: 10 },
+      { symbol: 'EUR/USD', kind: 'forex', momentum: 5, volatility: 4 },
+      { symbol: 'GBP/USD', kind: 'forex', momentum: 6, volatility: 6 },
+      { symbol: 'USD/JPY', kind: 'forex', momentum: 6, volatility: 5 }
+    ];
+
+    const riskConfig = {
+      low: { preferredVol: 4, maxPositionPct: 0.07, maxTotalRiskPct: 0.02 },
+      medium: { preferredVol: 6, maxPositionPct: 0.12, maxTotalRiskPct: 0.04 },
+      high: { preferredVol: 8, maxPositionPct: 0.18, maxTotalRiskPct: 0.06 }
+    };
+
+    const goalBoost = { preserve: -0.8, balanced: 0, aggressive: 0.8 };
+    const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
+
+    function scoreAsset(asset, risk, days, goal) {
+      const cfg = riskConfig[risk];
+      const volPenalty = Math.abs(asset.volatility - cfg.preferredVol) * 1.15;
+      const timeFactor = days >= 7 ? 1.2 : -0.8;
+      const kindPenalty = (risk === 'low' && asset.kind === 'crypto') ? 1.2 : 0;
+      const base = asset.momentum * 1.75 - volPenalty + timeFactor + goalBoost[goal] - kindPenalty;
+      return clamp(base, 0, 10);
+    }
+
+    function scoreClass(score) {
+      if (score >= 7) return 'score-good';
+      if (score >= 5) return 'score-warn';
+      return 'score-risk';
+    }
+
+    document.getElementById('runBtn').addEventListener('click', () => {
+      const budget = Number(document.getElementById('budget').value || 0);
+      const days = Number(document.getElementById('days').value || 0);
+      const risk = document.getElementById('risk').value;
+      const goal = document.getElementById('goal').value;
+
+      if (budget < 20 || days < 1) {
+        alert('Please enter budget >= 20 and holding period >= 1 day.');
+        return;
+      }
+
+      const ranked = assets
+        .map((asset) => ({ ...asset, score: scoreAsset(asset, risk, days, goal) }))
+        .sort((a, b) => b.score - a.score);
+
+      const top = ranked[0];
+      const cfg = riskConfig[risk];
+      const maxPosition = Math.floor(budget * cfg.maxPositionPct);
+      const maxRiskDollars = (budget * cfg.maxTotalRiskPct).toFixed(2);
+      const stopLoss = top.kind === 'crypto' ? '3-5%' : '0.8-1.5%';
+
+      const rows = ranked.map((item, idx) => `
+        <tr>
+          <td>#${idx + 1} ${item.symbol}</td>
+          <td>${item.kind}</td>
+          <td class="${scoreClass(item.score)}"><strong>${item.score.toFixed(1)} / 10</strong></td>
+        </tr>
+      `).join('');
+
+      const result = document.getElementById('result');
+      result.style.display = 'block';
+      result.innerHTML = `
+        <h3>Advice: Start with <span class="${scoreClass(top.score)}">${top.symbol}</span></h3>
+        <p>Why: best fit for your <strong>${risk}</strong>-risk and <strong>${goal}</strong> goal profile right now.</p>
+        <ul class="list-tight">
+          <li>Suggested first position size: <strong>$${maxPosition}</strong> (from $${budget} budget).</li>
+          <li>Max loss per idea: <strong>$${maxRiskDollars}</strong> total risk cap.</li>
+          <li>Stop-loss guideline for ${top.symbol}: <strong>${stopLoss}</strong>.</li>
+          <li>Plan: split entries into 2 parts and review performance after <strong>${days}</strong> days.</li>
+        </ul>
+        <table>
+          <thead><tr><th>Rank</th><th>Market</th><th>Score</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    });
+  </script>
+</body>
+</html>
